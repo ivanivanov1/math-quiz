@@ -95,7 +95,7 @@ function LeaderboardView({
   }, [highlightedRunId, data]);
 
   return (
-    <Card className="w-full max-w-4xl bg-white/80 shadow-2xl shadow-primary/20 backdrop-blur">
+    <Card className="w-full max-w-4xl bg-white/80 shadow-2xl shadow-primary/20 backdrop-blur min-w-[340px]">
       <CardHeader className="sm:flex sm:items-center sm:justify-between">
         <div className="space-y-2">
           <CardTitle>Класация на смелите умножители</CardTitle>
@@ -136,15 +136,15 @@ function LeaderboardView({
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-lg border bg-white/70">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto rounded-lg border bg-white/70">
+          <table className="w-full min-w-[320px] text-left text-sm">
             <thead className="bg-muted/60 text-muted-foreground">
               <tr>
-                <th className="px-4 py-2 font-semibold">Име</th>
-                <th className="px-4 py-2 font-semibold text-right">Точки</th>
-                <th className="px-4 py-2 font-semibold text-right">Верни</th>
-                <th className="px-4 py-2 font-semibold text-right">Време</th>
-                <th className="px-4 py-2 font-semibold text-right">Дата</th>
+                <th className="w-24 px-2 py-2 font-semibold">Име</th>
+                <th className="w-20 px-2 py-2 font-semibold text-right">Точки</th>
+                <th className="w-24 px-2 py-2 font-semibold text-right">Верни</th>
+                <th className="w-24 px-2 py-2 font-semibold text-right">Време</th>
+                <th className="w-32 px-2 py-2 font-semibold text-right">Дата</th>
               </tr>
             </thead>
             <tbody>
@@ -172,27 +172,27 @@ function LeaderboardView({
                         isHighlighted ? 'bg-primary/10' : 'bg-white/0'
                       }`}
                     >
-                    <td className="px-4 py-3 font-medium">
-                      {isHighlighted ? '⭐ ' : ''}
-                      {run.playerName}
-                    </td>
-                    <td className="px-4 py-3 text-right font-semibold text-primary">{run.score}</td>
-                    <td className="px-4 py-3 text-right">
-                      {run.correctCount}/{run.questionCount}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {formatDuration(run.elapsedSeconds)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-muted-foreground">
-                      {new Intl.DateTimeFormat('bg-BG', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: '2-digit',
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      }).format(new Date(run.createdAt))}
-                    </td>
-                  </tr>
+                      <td className="max-w-[7rem] px-3 py-3 font-medium whitespace-normal break-words">
+                        {isHighlighted ? '⭐ ' : ''}
+                        {run.playerName}
+                      </td>
+                      <td className="px-3 py-3 text-right font-semibold text-primary">{run.score}</td>
+                      <td className="px-3 py-3 text-right">
+                        {run.correctCount}/{run.questionCount}
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        {formatDuration(run.elapsedSeconds)}
+                      </td>
+                      <td className="px-3 py-3 text-right text-muted-foreground">
+                        {new Intl.DateTimeFormat('bg-BG', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: '2-digit',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        }).format(new Date(run.createdAt))}
+                      </td>
+                    </tr>
                   );
                 })
               )}
@@ -263,6 +263,7 @@ function App() {
   const [leaderboardReloadVersion, setLeaderboardReloadVersion] = useState(0);
   const [highlightedRunId, setHighlightedRunId] = useState<number | null>(null);
   const [reviewData, setReviewData] = useState<{ questions: Question[]; answers: AnswerPayload[] } | null>(null);
+  const answerInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let timerId: number | null = null;
@@ -353,6 +354,9 @@ function App() {
       setCurrentAnswer('');
       setElapsedSeconds(0);
       setPlayerName('');
+      requestAnimationFrame(() => {
+        answerInputRef.current?.focus();
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не успях да стартирам играта.');
     } finally {
@@ -398,6 +402,9 @@ function App() {
       setStage('summary');
     } else {
       setCurrentIndex((prev) => prev + 1);
+      requestAnimationFrame(() => {
+        answerInputRef.current?.focus();
+      });
     }
   };
 
@@ -541,8 +548,7 @@ function App() {
                   className="mt-2 h-12 text-lg"
                 />
                 <p className="mt-2 text-sm text-muted-foreground">
-                  За бонус бързина имаш{' '}
-                  {isQuestionCountValid ? parsedQuestionCount * 6 : '…'} секунди.
+                  Бонус бързина, ако приключиш до {isQuestionCountValid ? parsedQuestionCount * 6 : '…'} секунди.
                 </p>
               </div>
               {error && <p className="text-sm font-medium text-destructive">{error}</p>}
@@ -600,10 +606,10 @@ function App() {
                 id="answer"
                 type="number"
                 inputMode="numeric"
-                autoFocus
                 value={currentAnswer}
                 onChange={(event) => setCurrentAnswer(event.target.value)}
                 className="h-16 w-44 rounded-full border-4 border-white bg-white/90 text-center text-3xl font-bold text-slate-900 shadow-xl focus-visible:ring-white"
+                ref={answerInputRef}
               />
               <Button
                 type="button"
