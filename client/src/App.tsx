@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -20,8 +20,9 @@ import {
   type LeaderboardResponse,
   type Question,
 } from '@/services/api';
+import { computePreviewScore } from '@/utils/scoring';
 
-type Stage = 'home' | 'quiz' | 'summary' | 'leaderboard';
+type Stage = 'home' | 'quiz' | 'summary' | 'review' | 'leaderboard';
 
 type SummaryStats = {
   questionCount: number;
@@ -63,6 +64,8 @@ function LeaderboardView({
   onApplySearch,
   onResetSearch,
   onRefresh,
+  highlightedRunId,
+  onGoHome,
 }: {
   data: LeaderboardResponse | null;
   loading: boolean;
@@ -74,9 +77,22 @@ function LeaderboardView({
   onApplySearch: () => void;
   onResetSearch: () => void;
   onRefresh: () => void;
+  highlightedRunId: number | null;
+  onGoHome: () => void;
 }) {
   const totalPages = data?.totalPages ?? 0;
   const items = data?.items ?? [];
+  const highlightedRowRef = useRef<HTMLTableRowElement | null>(null);
+
+  highlightedRowRef.current = null;
+
+  useEffect(() => {
+    if (!highlightedRunId) return;
+    const el = highlightedRowRef.current;
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlightedRunId, data]);
 
   return (
     <Card className="w-full max-w-4xl bg-white/80 shadow-2xl shadow-primary/20 backdrop-blur">
@@ -87,6 +103,14 @@ function LeaderboardView({
             Разгледай всички записани приключения. Филтрирай по име и виж кой е най-бърз.
           </CardDescription>
         </div>
+        <Button
+          type="button"
+          variant="ghost"
+          className="mt-4 inline-flex items-center gap-1 text-primary hover:bg-primary/10 sm:mt-0"
+          onClick={onGoHome}
+        >
+          ← Към началото
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -137,26 +161,40 @@ function LeaderboardView({
                   </td>
                 </tr>
               ) : (
-                items.map((run) => (
-                  <tr key={run.id} className="border-t border-border/60">
-                    <td className="px-4 py-3 font-medium">{run.playerName}</td>
+                items.map((run) => {
+                  const isHighlighted = run.id === highlightedRunId;
+                  return (
+                    <tr
+                      key={run.id}
+                      data-run-id={run.id}
+                      ref={isHighlighted ? (el) => { highlightedRowRef.current = el; } : undefined}
+                      className={`border-t border-border/60 transition-colors ${
+                        isHighlighted ? 'bg-primary/10' : 'bg-white/0'
+                      }`}
+                    >
+                    <td className="px-4 py-3 font-medium">
+                      {isHighlighted ? '⭐ ' : ''}
+                      {run.playerName}
+                    </td>
                     <td className="px-4 py-3 text-right font-semibold text-primary">{run.score}</td>
                     <td className="px-4 py-3 text-right">
                       {run.correctCount}/{run.questionCount}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {formatDuration(run.elapsedSeconds)} / {formatDuration(run.timeLimitSeconds)}
+                      {formatDuration(run.elapsedSeconds)}
                     </td>
                     <td className="px-4 py-3 text-right text-muted-foreground">
                       {new Intl.DateTimeFormat('bg-BG', {
                         month: 'short',
                         day: 'numeric',
+                        year: '2-digit',
                         hour: 'numeric',
                         minute: '2-digit',
                       }).format(new Date(run.createdAt))}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -223,6 +261,8 @@ function App() {
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
   const [leaderboardReloadVersion, setLeaderboardReloadVersion] = useState(0);
+  const [highlightedRunId, setHighlightedRunId] = useState<number | null>(null);
+  const [reviewData, setReviewData] = useState<{ questions: Question[]; answers: AnswerPayload[] } | null>(null);
 
   useEffect(() => {
     let timerId: number | null = null;
@@ -268,6 +308,21 @@ function App() {
     return countCorrect(session.questions, answers);
   }, [session, answers, summaryStats]);
 
+  const previewScore = useMemo(() => {
+    if (!summaryStats) return null;
+    return computePreviewScore(
+      summaryStats.questionCount,
+      summaryStats.correctCount,
+      summaryStats.elapsedSeconds,
+    );
+  }, [summaryStats]);
+
+  const scoreDetails = result ?? previewScore;
+  const reviewAnswerMap = useMemo(() => {
+    if (!reviewData) return null;
+    return new Map(reviewData.answers.map((entry) => [entry.questionId, entry]));
+  }, [reviewData]);
+
   const handleStartSession = async () => {
     const numericTarget = Number(questionCountInput);
     if (!Number.isFinite(numericTarget)) {
@@ -282,6 +337,8 @@ function App() {
     }
 
     setQuestionCountInput(String(requestedCount));
+    setHighlightedRunId(null);
+    setReviewData(null);
     setLoading(true);
     setError(null);
     setResult(null);
@@ -328,6 +385,10 @@ function App() {
     if (currentIndex + 1 >= session.questions.length) {
       const elapsed = quizStartedAt ? Number(((Date.now() - quizStartedAt) / 1000).toFixed(1)) : elapsedSeconds;
       setElapsedSeconds(elapsed);
+      setReviewData({
+        questions: session.questions,
+        answers: updatedAnswers,
+      });
       setSummaryStats({
         questionCount: session.questions.length,
         correctCount: countCorrect(session.questions, updatedAnswers),
@@ -354,15 +415,16 @@ function App() {
       const completion = await completeSession(session.sessionId, {
         playerName: trimmedName,
         answers,
+        elapsedSeconds: summaryStats.elapsedSeconds,
       });
       setResult(completion);
       setSession(null);
       setQuizStartedAt(null);
       setAnswers([]);
-      setLeaderboardSearchInput(trimmedName);
-      setLeaderboardSearch(trimmedName);
-      setLeaderboardPage(1);
+      setHighlightedRunId(completion.runId);
+      setLeaderboardPage(completion.page);
       setLeaderboardReloadVersion((value) => value + 1);
+      setStage('leaderboard');
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Не успях да запазя резултата.');
     } finally {
@@ -383,7 +445,9 @@ function App() {
     setError(null);
     setSaveError(null);
     setPlayerName('');
+    setHighlightedRunId(null);
     setQuestionCountInput('10');
+    setReviewData(null);
   };
 
   const handleLeaderboardApplySearch = () => {
@@ -413,7 +477,7 @@ function App() {
     window.addEventListener('keydown', keyListener);
     return () => window.removeEventListener('keydown', keyListener);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, currentAnswer, session, currentIndex, quizStartedAt, answers]);
+  }, [stage, currentAnswer, session, currentIndex, quizStartedAt, answers, questionCountInput]);
 
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-sky-100 via-rose-100 to-amber-100">
@@ -574,6 +638,15 @@ function App() {
                   <p className="mt-2 text-3xl font-semibold text-primary">
                     {summaryStats.correctCount} / {summaryStats.questionCount}
                   </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => setStage('review')}
+                    disabled={!reviewData}
+                  >
+                    Провери отговорите
+                  </Button>
                 </div>
                 <div className="rounded-2xl border bg-secondary/10 p-5">
                   <p className="text-sm text-muted-foreground">Изминало време</p>
@@ -582,22 +655,33 @@ function App() {
                   </p>
                 </div>
               </div>
+              {scoreDetails && (
+                <div className="rounded-2xl border bg-accent/10 p-5">
+                  <p className="text-sm text-muted-foreground">
+                    Точки за този рунд:
+                  </p>
+                  <p className="mt-2 text-4xl font-bold text-secondary-foreground">
+                    {scoreDetails.score} т.{' '}
+                    <span className="text-base font-medium text-muted-foreground">
+                      ({scoreDetails.timeBonus} точки бонус за време)
+                    </span>
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {scoreDetails.timeBonus > 0
+                      ? 'Браво! Победи часовника!'
+                      : summaryStats.correctCount === summaryStats.questionCount
+                        ? 'Следващия път опитай да приключиш по-бързо, за да грабнеш бонуса.'
+                        : 'Имаш няколко грешки - опитай отново и бонусът ще те чака!'}
+                  </p>
+                </div>
+              )}
               {result ? (
                 <div className="rounded-2xl border bg-muted/40 p-5">
                   <p className="text-sm font-semibold uppercase tracking-[0.3em] text-secondary-foreground/80">
                     Резултатът е запазен!
                   </p>
-                  <p className="mt-2 text-4xl font-bold text-secondary-foreground">
-                    {result.score} т.{' '}
-                    <span className="text-base font-medium text-muted-foreground">
-                      ({result.basePoints} базови + {result.timeBonus} бонус)
-                    </span>
-                  </p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Минимален резултат: {result.floorScore}.{' '}
-                    {result.timeBonus > 0
-                      ? 'Браво! Победи часовника!'
-                      : 'Следващия път опитай да приключиш по-бързо, за да грабнеш бонуса.'}
+                    Вече можеш да го видиш в класацията или да започнеш ново приключение.
                   </p>
                 </div>
               ) : (
@@ -613,13 +697,13 @@ function App() {
                     />
                   </div>
                   {saveError && <p className="text-sm font-medium text-destructive">{saveError}</p>}
-                  <Button type="button" onClick={handleCompleteSession} disabled={saving}>
-                    {saving ? 'Записвам…' : 'Запази резултата'}
-                  </Button>
                 </div>
               )}
             </CardContent>
-            <CardFooter className="flex flex-wrap gap-3">
+            <CardFooter className="flex flex-wrap justify-between">
+              <Button type="button" onClick={handleCompleteSession} disabled={saving}>
+                {saving ? 'Записвам…' : 'Запази резултата'}
+              </Button>
               <Button type="button" variant="outline" onClick={handleReset}>
                 Към началото
               </Button>
@@ -633,16 +717,6 @@ function App() {
 
       {stage === 'leaderboard' && (
         <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center gap-10 px-6 py-16 text-center">
-          <div className="absolute left-6 top-6">
-            <Button
-              type="button"
-              variant="ghost"
-              className="bg-white/70 text-primary hover:bg-white"
-              onClick={() => setStage('home')}
-            >
-              ← Към началото
-            </Button>
-          </div>
           <LeaderboardView
             data={leaderboardData}
             loading={leaderboardLoading}
@@ -654,7 +728,74 @@ function App() {
             onApplySearch={handleLeaderboardApplySearch}
             onResetSearch={handleLeaderboardResetSearch}
             onRefresh={() => setLeaderboardReloadVersion((value) => value + 1)}
+            highlightedRunId={highlightedRunId}
+            onGoHome={() => {
+              setHighlightedRunId(null);
+              setStage('home');
+            }}
           />
+        </div>
+      )}
+
+      {stage === 'review' && reviewData && summaryStats && (
+        <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center gap-8 px-6 py-16">
+          <Card className="w-full bg-white/85 shadow-2xl shadow-secondary/30 backdrop-blur">
+            <CardHeader>
+              <CardTitle className="text-3xl font-bold text-secondary-foreground">
+                Провери отговорите
+              </CardTitle>
+              <CardDescription>
+                {summaryStats.questionCount} задачки • {summaryStats.correctCount} верни •{' '}
+                {formatDuration(summaryStats.elapsedSeconds)}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {reviewData.questions.map((question) => {
+                const answerRecord = reviewAnswerMap?.get(question.id);
+                const userAnswer =
+                  answerRecord && Number.isFinite(Number(answerRecord.answer))
+                    ? Number(answerRecord.answer)
+                    : null;
+                const correctAnswer = question.left * question.right;
+                const isCorrect = userAnswer === correctAnswer;
+
+                return (
+                  <div
+                    key={question.id}
+                    className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-lg ${
+                      isCorrect
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : 'border-rose-200 bg-rose-50 text-rose-700'
+                    }`}
+                  >
+                    <span className="font-display font-semibold">
+                      {question.left} × {question.right} ={' '}
+                      <span className="font-bold">
+                        {userAnswer !== null ? userAnswer : '—'}
+                      </span>
+                    </span>
+                    {!isCorrect && (
+                      <span className="text-sm font-medium text-rose-600">
+                        Правилен отговор: {correctAnswer}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </CardContent>
+            <CardFooter className="flex flex-wrap gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStage('summary')}
+              >
+                Назад към обобщението
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setStage('leaderboard')}>
+                Виж класацията
+              </Button>
+            </CardFooter>
+          </Card>
         </div>
       )}
     </div>

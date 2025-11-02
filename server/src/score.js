@@ -11,12 +11,14 @@ function computeScore({ questionCount, correctCount, elapsedSeconds }) {
   const basePoints = correctCount * POINTS_PER_CORRECT;
   const floorScore = Math.floor(basePoints * FLOOR_MULTIPLIER);
   const timeLimit = computeTimeLimit(questionCount);
+  const madeNoMistakes = correctCount === questionCount;
 
   if (elapsedSeconds >= timeLimit) {
-    return { score: floorScore, basePoints, floorScore, timeLimit };
+    return { score: floorScore, basePoints, floorScore, timeLimit, timeBonus: 0 };
   }
 
-  const timeBonus = Math.max(0, Math.floor((timeLimit - elapsedSeconds) * BONUS_MULTIPLIER));
+  const rawBonus = Math.max(0, Math.floor((timeLimit - elapsedSeconds) * BONUS_MULTIPLIER));
+  const timeBonus = madeNoMistakes ? rawBonus : 0;
   const finalScore = Math.max(basePoints + timeBonus, floorScore);
 
   return { score: finalScore, basePoints, floorScore, timeLimit, timeBonus };

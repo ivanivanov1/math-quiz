@@ -6,7 +6,7 @@ const fs = require('fs');
 const { MAX_QUESTIONS, getCorrectAnswer } = require('./questions');
 const { createSession, getSession, deleteSession } = require('./session-store');
 const { computeScore } = require('./score');
-const { saveRun, listRuns } = require('./runs-repository');
+const { saveRun, listRuns, getRunWithRank } = require('./runs-repository');
 
 const PORT = process.env.PORT || 4000;
 const DEFAULT_QUESTION_COUNT = 10;
@@ -65,7 +65,12 @@ app.post('/api/sessions/:sessionId/complete', (req, res) => {
   }
 
   const trimmedName = playerName.trim();
-  const elapsedSeconds = Number(((Date.now() - session.startTime) / 1000).toFixed(2));
+  const rawElapsedSeconds = Number(((Date.now() - session.startTime) / 1000).toFixed(2));
+  const providedElapsedSeconds = Number(req.body?.elapsedSeconds);
+  const elapsedSeconds =
+    Number.isFinite(providedElapsedSeconds) && providedElapsedSeconds >= 0
+      ? Number(Math.min(providedElapsedSeconds, rawElapsedSeconds).toFixed(2))
+      : rawElapsedSeconds;
 
   const questionMap = new Map(session.questions.map((q) => [q.id, q]));
 
@@ -93,7 +98,7 @@ app.post('/api/sessions/:sessionId/complete', (req, res) => {
     elapsedSeconds,
   });
 
-  saveRun({
+  const runId = saveRun({
     playerName: trimmedName,
     score: scoring.score,
     questionCount: session.questions.length,
@@ -102,10 +107,15 @@ app.post('/api/sessions/:sessionId/complete', (req, res) => {
     timeLimitSeconds: scoring.timeLimit,
   });
 
+  const runWithRank = getRunWithRank(runId);
+  const rank = runWithRank ? runWithRank.rank : 0;
+  const pageForRun = Math.floor(rank / PAGE_SIZE) + 1;
+
   deleteSession(sessionId);
 
   return res.status(201).json({
     playerName: trimmedName,
+    runId,
     score: scoring.score,
     basePoints: scoring.basePoints,
     floorScore: scoring.floorScore,
@@ -114,6 +124,9 @@ app.post('/api/sessions/:sessionId/complete', (req, res) => {
     correctCount,
     elapsedSeconds,
     timeLimitSeconds: scoring.timeLimit,
+    rank,
+    page: pageForRun,
+    run: runWithRank?.run ?? null,
   });
 });
 

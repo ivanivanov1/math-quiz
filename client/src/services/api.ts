@@ -18,10 +18,12 @@ export type AnswerPayload = {
 export type CompleteSessionPayload = {
   playerName: string;
   answers: AnswerPayload[];
+  elapsedSeconds: number;
 };
 
 export type CompleteSessionResponse = {
   playerName: string;
+  runId: number;
   score: number;
   basePoints: number;
   floorScore: number;
@@ -30,6 +32,9 @@ export type CompleteSessionResponse = {
   correctCount: number;
   elapsedSeconds: number;
   timeLimitSeconds: number;
+  rank: number;
+  page: number;
+  run: LeaderboardRun | null;
 };
 
 export type LeaderboardRun = {

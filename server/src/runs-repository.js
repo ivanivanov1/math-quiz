@@ -33,6 +33,28 @@ const countRunsStmt = db.prepare(`
   WHERE player_name LIKE ?
 `);
 
+const getRunByIdStmt = db.prepare(`
+  SELECT
+    id,
+    player_name AS playerName,
+    score,
+    question_count AS questionCount,
+    correct_count AS correctCount,
+    elapsed_seconds AS elapsedSeconds,
+    time_limit_seconds AS timeLimitSeconds,
+    created_at AS createdAt
+  FROM runs
+  WHERE id = ?
+`);
+
+const rankCountStmt = db.prepare(`
+  SELECT COUNT(*) as higher
+  FROM runs
+  WHERE score > @score
+     OR (score = @score AND elapsed_seconds < @elapsedSeconds)
+     OR (score = @score AND elapsed_seconds = @elapsedSeconds AND datetime(created_at) < datetime(@createdAt))
+`);
+
 function saveRun(run) {
   const { playerName, score, questionCount, correctCount, elapsedSeconds, timeLimitSeconds } = run;
   const info = insertRunStmt.run(
@@ -60,7 +82,29 @@ function listRuns({ pageSize, page, search }) {
   };
 }
 
+function getRunById(runId) {
+  return getRunByIdStmt.get(runId);
+}
+
+function getRunWithRank(runId) {
+  const run = getRunById(runId);
+  if (!run) {
+    return null;
+  }
+  const { higher } = rankCountStmt.get({
+    score: run.score,
+    elapsedSeconds: run.elapsedSeconds,
+    createdAt: run.createdAt,
+  });
+  return {
+    run,
+    rank: higher, // zero-based ranking
+  };
+}
+
 module.exports = {
   saveRun,
   listRuns,
+  getRunById,
+  getRunWithRank,
 };

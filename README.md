@@ -121,7 +121,7 @@ A lightweight React + Express project (UI in Bulgarian) that helps children mast
 
 - Each correct answer is worth **10 base points**.
 - Time limit = `questionCount × 6` seconds.
-- Finish within the limit to earn a **time bonus**: `(timeLimit − elapsedSeconds) × 2` (rounded down, minimum 0).
+- Finish every question correctly *and* within the limit to earn a **time bonus**: `(timeLimit − elapsedSeconds) × 2` (rounded down, minimum 0).
 - Your final score is `max(basePoints + timeBonus, floorScore)` where `floorScore = basePoints × 0.3`.
 - If you exceed the time limit, you receive the floor score.
 
