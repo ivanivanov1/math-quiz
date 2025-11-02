@@ -51,7 +51,7 @@ export type LeaderboardResponse = {
   totalPages: number;
 };
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:4000';
+const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
 async function request<TResponse>(path: string, init?: RequestInit): Promise<TResponse> {
   const response = await fetch(`${API_BASE}${path}`, {

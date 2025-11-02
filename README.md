@@ -44,6 +44,72 @@ A lightweight React + Express project (UI in Bulgarian) that helps children mast
 - **Frontend:** `npm run build` under `client/` produces static assets in `client/dist`.
 - **Backend:** run `npm run start` in `server/` to launch the Express API in production mode. You can serve the compiled frontend separately (Netlify, Vercel, static hosting, etc.).
 
+## One-box (VPS) Deployment
+
+1. **Build the frontend**
+   ```bash
+   cd client
+   npm install
+   npm run build
+   ```
+
+2. **Install and start the backend**
+   ```bash
+   cd ../server
+   npm install
+   NODE_ENV=production PORT=4000 npm run start
+   ```
+
+   The Express server automatically serves the compiled React app from `client/dist` whenever the folder exists.
+
+3. **SQLite data**
+   - Created automatically in `server/data.sqlite3`.
+   - Back it up or delete it whenever you need a fresh leaderboard.
+
+4. **Keep the node process alive**
+   - Use a supervisor such as `pm2`, `forever`, or a systemd unit. Example systemd unit:
+     ```ini
+     [Unit]
+     Description=Multiplication practice API
+     After=network.target
+
+     [Service]
+     Type=simple
+     WorkingDirectory=/opt/math-tests/server
+     ExecStart=/usr/bin/env NODE_ENV=production PORT=4000 npm run start
+     Restart=on-failure
+     Environment=PATH=/usr/local/bin:/usr/bin
+
+     [Install]
+     WantedBy=multi-user.target
+     ```
+
+5. **Reverse proxy with Nginx**
+   - Point your domain at the VPS and use a simple proxy block:
+     ```nginx
+     server {
+       listen 80;
+       server_name yourdomain.com;
+
+       location / {
+         proxy_pass http://127.0.0.1:4000;
+         proxy_http_version 1.1;
+         proxy_set_header Host $host;
+         proxy_set_header X-Real-IP $remote_addr;
+         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+         proxy_set_header X-Forwarded-Proto $scheme;
+       }
+     }
+     ```
+
+   - Obtain TLS certificates with Let’s Encrypt (`certbot`) and update the server block to listen on 443.
+
+6. **Environment variables**
+   - No extra variables are required unless you want to override the API base URL. The frontend falls back to same-origin requests (`/api/...`), so the built app works behind the proxy without changes.
+
+7. **Rolling updates**
+   - Pull the latest code, rebuild the frontend (`client/npm run build`), then restart the backend service. No asset copying is necessary—the backend reads directly from `client/dist`.
+
 ## Testing & Checks
 
 - `client/npm run check` – type-check the React codebase with TypeScript.

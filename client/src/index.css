@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&family=Pangolin&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -26,7 +26,8 @@
     --destructive-foreground: 210 40% 98%;
     --ring: 265 83% 58%;
     --radius: 0.8rem;
-    --font-sans: 'Inter', sans-serif;
+    --font-sans: 'Comfortaa', cursive;
+    --font-display: 'Pangolin', cursive;
   }
 
   body {
@@ -37,6 +38,18 @@
 
   * {
     @apply border-border;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display), var(--font-sans);
+    letter-spacing: -0.01em;
+  }
+
+  .font-display {
+    font-family: var(--font-display), var(--font-sans);
   }
 }
 

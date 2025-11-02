@@ -425,14 +425,14 @@ function App() {
       {stage === 'home' && (
         <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center gap-12 px-6 py-12 text-center">
           <div className="space-y-6">
-            <h1 className="font-semibold uppercase tracking-[0.3em] text-primary/80">
+            <h1 className="text-4xl font-semibold uppercase tracking-[0.3em] text-primary/80">
               Весела математика
             </h1>
             <h1 className="text-4xl font-bold leading-tight text-slate-900 md:text-5xl">
               Превърни умножението в цветно приключение!
             </h1>
             <p className="mx-auto max-w-2xl text-lg text-slate-700">
-              Натисни старт, задай колко задачи и се впусни в състезание срещу часовника. Всеки рунд е различен,
+              Задай колко задачи искаш, натисни старт и се впусни в състезание срещу часовника. Всеки рунд е различен,
               защото задачите се разбъркват наново.
             </p>
           </div>

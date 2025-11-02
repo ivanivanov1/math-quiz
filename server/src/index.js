@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 
 const { MAX_QUESTIONS, getCorrectAnswer } = require('./questions');
 const { createSession, getSession, deleteSession } = require('./session-store');
@@ -127,6 +129,14 @@ app.get('/api/leaderboard', (req, res) => {
 
   return res.json(results);
 });
+
+const distDir = path.join(__dirname, '..', '..', 'client', 'dist');
+if (fs.existsSync(distDir)) {
+  app.use(express.static(distDir));
+  app.get(/^(?!\/api\/).*/, (req, res) => {
+    res.sendFile(path.join(distDir, 'index.html'));
+  });
+}
 
 app.use((err, _req, res, _next) => {
   // eslint-disable-next-line no-console
