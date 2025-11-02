@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 100% 97%;
+    --foreground: 240 10% 3.9%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --primary: 265 83% 58%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 188 78% 72%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --accent: 42 97% 66%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --ring: 265 83% 58%;
+    --radius: 0.8rem;
+    --font-sans: 'Inter', sans-serif;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased min-h-screen;
+    background-image: radial-gradient(circle at 20% 20%, rgba(132, 191, 255, 0.35), transparent 40%),
+      radial-gradient(circle at 80% 0%, rgba(255, 218, 128, 0.3), transparent 30%);
+  }
+
+  * {
+    @apply border-border;
+  }
+}
+
+.home-card {
+  width: 100%;
+  max-width: 24rem;
+}
+
+@media (min-width: 640px) {
+  .home-card {
+    max-width: 28rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .home-card {
+    max-width: 50vw;
+  }
+}
+
+@media (min-width: 1024px) {
+  .home-card {
+    max-width: 40vw;
+  }
+}
