@@ -512,7 +512,7 @@ function App() {
             <div className="space-y-4 text-left">
               <div>
                 <Label htmlFor="question-count" className="text-base">
-                  Колко задачки искаш?
+                  Колко задачки искаш? (между 1 и 100)
                 </Label>
                 <Input
                   id="question-count"
