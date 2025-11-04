@@ -163,6 +163,32 @@ function LeaderboardView({
               ) : (
                 items.map((run) => {
                   const isHighlighted = run.id === highlightedRunId;
+                  const createdAtDate = (() => {
+                    if (typeof run.createdAt === 'string') {
+                      const naiveMatch = run.createdAt.match(
+                        /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/
+                      );
+                      if (naiveMatch) {
+                        const [, year, month, day, hour, minute, second] = naiveMatch;
+                        // Treat naive timestamps as UTC and convert to Europe/Sofia later
+                        return new Date(
+                          Date.UTC(
+                            Number(year),
+                            Number(month) - 1,
+                            Number(day),
+                            Number(hour),
+                            Number(minute),
+                            Number(second)
+                          )
+                        );
+                      }
+                      const parsed = Date.parse(run.createdAt);
+                      if (!Number.isNaN(parsed)) {
+                        return new Date(parsed);
+                      }
+                    }
+                    return new Date(run.createdAt);
+                  })();
                   return (
                     <tr
                       key={run.id}
@@ -190,7 +216,8 @@ function LeaderboardView({
                           year: '2-digit',
                           hour: 'numeric',
                           minute: '2-digit',
-                        }).format(new Date(run.createdAt))}
+                          timeZone: 'Europe/Sofia',
+                        }).format(createdAtDate)}
                       </td>
                     </tr>
                   );
